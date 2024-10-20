@@ -28,3 +28,9 @@ jobs:
           CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
         run: |
           python update_cname.py
+
+      - name: Upload log file
+        uses: actions/upload-artifact@v3
+        with:
+          name: dns-update-logs
+          path: dns_update_log.txt
