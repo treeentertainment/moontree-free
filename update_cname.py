@@ -1,6 +1,7 @@
 import json
 import os
 import requests
+import logging
 
 # Load environment variables
 CF_API_TOKEN = os.getenv('CF_API_TOKEN')
@@ -22,16 +23,16 @@ headers = {
     'Content-Type': 'application/json',
 }
 
-# 로그 파일 설정
+# Set up logging
 LOG_FILE = "dns_update_log.txt"
-
-def log_message(message):
-    """로그 파일에 메시지를 기록하는 함수."""
-    with open(LOG_FILE, "a") as log_file:
-        log_file.write(message + "\n")
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.DEBUG,  # Set to DEBUG to capture all levels of logs
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 def update_cname_record(subdomain, cname):
-    # Complete subdomain and cname with base domain
     full_subdomain = f"{subdomain}.{BASE_DOMAIN}"
     full_cname = f"{cname}.{BASE_DOMAIN}"
 
@@ -41,19 +42,19 @@ def update_cname_record(subdomain, cname):
         'name': full_subdomain
     }
 
-    log_message(f"[INFO] {full_subdomain}에 대한 CNAME 기록 검색 중...")
+    logging.info(f"{full_subdomain}에 대한 CNAME 기록 검색 중...")
 
     response = requests.get(CF_API_URL, headers=headers, params=params)
-    
-    # API 요청 결과 기록
-    log_message(f"[DEBUG] CNAME 검색 응답 상태 코드: {response.status_code}")
-    log_message(f"[DEBUG] CNAME 검색 응답 내용: {response.text}")
-    
+
+    # Log API request response
+    logging.debug(f"CNAME 검색 응답 상태 코드: {response.status_code}")
+    logging.debug(f"CNAME 검색 응답 내용: {response.text}")
+
     records = response.json().get('result', [])
 
     if records:
         record_id = records[0]['id']
-        log_message(f"[INFO] 기존 CNAME 기록 존재: {record_id}. 업데이트 시도 중...")
+        logging.info(f"기존 CNAME 기록 존재: {record_id}. 업데이트 시도 중...")
 
         # Update existing CNAME record
         data = {
@@ -64,17 +65,17 @@ def update_cname_record(subdomain, cname):
             'proxied': False
         }
         response = requests.put(f"{CF_API_URL}/{record_id}", headers=headers, json=data)
-        
-        # 업데이트 결과 기록
-        log_message(f"[DEBUG] CNAME 업데이트 응답 상태 코드: {response.status_code}")
-        log_message(f"[DEBUG] CNAME 업데이트 응답 내용: {response.text}")
-        
+
+        # Log update result
+        logging.debug(f"CNAME 업데이트 응답 상태 코드: {response.status_code}")
+        logging.debug(f"CNAME 업데이트 응답 내용: {response.text}")
+
         if response.status_code == 200:
-            log_message(f"[SUCCESS] {full_subdomain}의 CNAME이 {full_cname}로 업데이트됨.")
+            logging.info(f"{full_subdomain}의 CNAME이 {full_cname}로 업데이트됨.")
         else:
-            log_message(f"[ERROR] {full_subdomain}의 CNAME 업데이트 실패: {response.text}")
+            logging.error(f"{full_subdomain}의 CNAME 업데이트 실패: {response.text}")
     else:
-        log_message(f"[INFO] 기존 CNAME 기록 없음. 새로 생성 시도 중...")
+        logging.info(f"기존 CNAME 기록 없음. 새로 생성 시도 중...")
 
         # Create a new CNAME record
         data = {
@@ -86,17 +87,17 @@ def update_cname_record(subdomain, cname):
         }
         response = requests.post(CF_API_URL, headers=headers, json=data)
 
-        # 생성 결과 기록
-        log_message(f"[DEBUG] CNAME 생성 응답 상태 코드: {response.status_code}")
-        log_message(f"[DEBUG] CNAME 생성 응답 내용: {response.text}")
+        # Log create result
+        logging.debug(f"CNAME 생성 응답 상태 코드: {response.status_code}")
+        logging.debug(f"CNAME 생성 응답 내용: {response.text}")
 
         if response.status_code == 200:
-            log_message(f"[SUCCESS] {full_subdomain}의 CNAME이 {full_cname}로 생성됨.")
+            logging.info(f"{full_subdomain}의 CNAME이 {full_cname}로 생성됨.")
         else:
-            log_message(f"[ERROR] {full_subdomain}의 CNAME 생성 실패: {response.text}")
+            logging.error(f"{full_subdomain}의 CNAME 생성 실패: {response.text}")
 
 # Iterate over each subdomain and update its CNAME
 for subdomain, cname in subdomains.items():
     update_cname_record(subdomain, cname)
 
-log_message("[INFO] 모든 작업 완료.")
+logging.info("모든 작업 완료.")
